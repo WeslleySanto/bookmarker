@@ -19,12 +19,11 @@ class BookmarksController extends AppController
     public function index()
     {
         $this->paginate = [
-            'contain' => ['Users']
-        ];
-        $bookmarks = $this->paginate($this->Bookmarks);
-
-        $this->set(compact('bookmarks'));
-        $this->set('_serialize', ['bookmarks']);
+            'conditions' => [
+                'Bookmarks.user_id' => $this->Auth->user('id'),
+                ]
+            ];
+        $this->set('bookmarks', $this->paginate($this->Bookmarks));
     }
 
     /**
@@ -49,22 +48,19 @@ class BookmarksController extends AppController
      *
      * @return \Cake\Network\Response|null Redirects on successful add, renders view otherwise.
      */
-    public function add()
-    {
+    public function add(){
         $bookmark = $this->Bookmarks->newEntity();
         if ($this->request->is('post')) {
-            $bookmark = $this->Bookmarks->patchEntity($bookmark, $this->request->data);
+            $bookmark = $this->Bookmarks->patchEntity($bookmark, $this->request->getData());
+            $bookmark->user_id = $this->Auth->user('id');
             if ($this->Bookmarks->save($bookmark)) {
-                $this->Flash->success(__('The bookmark has been saved.'));
-
+                $this->Flash->success('The bookmark has been saved.');
                 return $this->redirect(['action' => 'index']);
             }
-            $this->Flash->error(__('The bookmark could not be saved. Please, try again.'));
+            $this->Flash->error('The bookmark could not be saved. Please, try again.');
         }
-        $users = $this->Bookmarks->Users->find('list', ['limit' => 200]);
-        $tags = $this->Bookmarks->Tags->find('list', ['limit' => 200]);
-        $this->set(compact('bookmark', 'users', 'tags'));
-        $this->set('_serialize', ['bookmark']);
+        $tags = $this->Bookmarks->Tags->find('list');
+        $this->set(compact('bookmark', 'tags'));
     }
 
     /**
@@ -74,24 +70,21 @@ class BookmarksController extends AppController
      * @return \Cake\Network\Response|null Redirects on successful edit, renders view otherwise.
      * @throws \Cake\Network\Exception\NotFoundException When record not found.
      */
-    public function edit($id = null)
-    {
+    public function edit($id = null){
         $bookmark = $this->Bookmarks->get($id, [
             'contain' => ['Tags']
         ]);
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $bookmark = $this->Bookmarks->patchEntity($bookmark, $this->request->data);
+            $bookmark = $this->Bookmarks->patchEntity($bookmark, $this->request->getData());
+            $bookmark->user_id = $this->Auth->user('id');
             if ($this->Bookmarks->save($bookmark)) {
-                $this->Flash->success(__('The bookmark has been saved.'));
-
+                $this->Flash->success('The bookmark has been saved.');
                 return $this->redirect(['action' => 'index']);
             }
-            $this->Flash->error(__('The bookmark could not be saved. Please, try again.'));
+            $this->Flash->error('The bookmark could not be saved. Please, try again.');
         }
-        $users = $this->Bookmarks->Users->find('list', ['limit' => 200]);
-        $tags = $this->Bookmarks->Tags->find('list', ['limit' => 200]);
-        $this->set(compact('bookmark', 'users', 'tags'));
-        $this->set('_serialize', ['bookmark']);
+        $tags = $this->Bookmarks->Tags->find('list');
+        $this->set(compact('bookmark', 'tags'));
     }
 
     /**
@@ -120,5 +113,26 @@ class BookmarksController extends AppController
         $tags = $this->request->params['pass'];
         $bookmarks = $this->Bookmarks->find('tagged', ['tags' => $tags]);
         $this->set(compact('bookmarks', 'tags'));
-    }
+    }//FINAL FUNCTION tags
+    
+    public function isAuthorized($user){
+        $action = $this->request->params['action'];
+    
+        // As ações add e index são permitidas sempre.
+        if (in_array($action, ['index', 'add', 'tags'])) {
+            return true;
+        }
+        // Todas as outras ações requerem um id.
+        if (!$this->request->params['pass.0']) {
+            return false;
+        }
+    
+        // Checa se o bookmark pertence ao user atual.
+        $id = $this->request->params['pass.0'];
+        $bookmark = $this->Bookmarks->get($id);
+        if ($bookmark->user_id == $user['id']) {
+            return true;
+        }
+        return parent::isAuthorized($user);
+    }//FINAL FUNCTION isAuthorized
 }

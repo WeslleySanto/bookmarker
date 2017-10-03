@@ -43,7 +43,27 @@ class AppController extends Controller
 
         $this->loadComponent('RequestHandler');
         $this->loadComponent('Flash');
+        
+        $this->loadComponent('Auth', [
+            'authorize' => 'Controller',
+            'authenticate' => [
+                'Form' => [
+                    'fields' => [
+                        'username' => 'email',
+                        'password' => 'password'
+                    ]
+                ]
+            ],
+            'loginAction' => [
+                'controller' => 'Users',
+                'action' => 'login'
+            ]
+        ]);
 
+        // Permite a ação display, assim nosso pages controller
+        // continua a funcionar.
+        $this->Auth->allow(['display']);
+        
         /*
          * Enable the following components for recommended CakePHP security settings.
          * see http://book.cakephp.org/3.0/en/controllers/components/security.html
@@ -66,4 +86,8 @@ class AppController extends Controller
             $this->set('_serialize', true);
         }
     }
+    
+    public function isAuthorized($user){
+        return false;
+    }//FINAL FUNCTION isAuthorized
 }
